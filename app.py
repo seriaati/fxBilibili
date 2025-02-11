@@ -127,7 +127,7 @@ async def bilibili_embed(bvid: str):
   <meta name="theme-color" content="#0fa6d8">
   <meta property="og:title" content="{owner_name} - {title}">
   <meta property="og:type" content="video">
-  <meta property="og:site_name" content="👁️ {view_count}">
+  <meta property="og:site_name" content="Bilibili | 👁️ {view_count}">
   <meta property="og:url" content="{current_url}">
   <meta property="og:video" content="{video_url}">
   <meta property="og:video:secure_url" content="{video_url}">
