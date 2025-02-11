@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
+import asyncio
 import os
 import httpx
+from hypercorn.config import Config
+from hypercorn.asyncio import serve
 from quart import Quart, Response, request
 
 app = Quart(__name__)
 app.url_map.strict_slashes = False
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
+
 
 def error_page(message: str, current_url: str = "") -> Response:
     html = f"""<!DOCTYPE html>
@@ -36,12 +40,14 @@ def error_page(message: str, current_url: str = "") -> Response:
 </html>"""
     return Response(html, content_type="text/html")
 
+
 @app.route("/")
 async def index():
     return (
         "Usage: Append the Bilibili video ID to the URL. "
         "For example: /BV1xK4y1p7 or /video/BV1xK4y1p7"
     )
+
 
 @app.route("/favicon.ico")
 async def favicon():
@@ -75,12 +81,12 @@ async def bilibili_embed(bvid: str):
     owner_name = owner.get("name", "Bilibili")
     stat = video_data.get("stat", {})
     view_count = stat.get("view", "0")
-    
+
     pages = video_data.get("pages", [])
     if not pages:
         return error_page("No video pages found", current_url)
     cid = pages[0].get("cid")
-    
+
     async with httpx.AsyncClient() as client:
         play_res = await client.get(
             f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&otype=json&platform=html5&high_quality=1",
@@ -100,7 +106,6 @@ async def bilibili_embed(bvid: str):
     video_url = durls[0].get("url")
     if not video_url:
         return error_page("No valid video URL", current_url)
-    
 
     user_agent = request.headers.get("User-Agent", "")
     redirect_url = f"https://www.bilibili.com/video/{bvid}"
@@ -111,7 +116,7 @@ async def bilibili_embed(bvid: str):
         )
     else:
         redirection = ""
-    
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,6 +159,8 @@ async def bilibili_embed(bvid: str):
 </html>"""
     return Response(html, content_type="text/html")
 
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    config = Config()
+    config.bind = ["localhost:9823"]
+    asyncio.run(serve(app, config))
