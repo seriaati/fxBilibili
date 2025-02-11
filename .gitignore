@@ -163,3 +163,4 @@ hoyo_buddy/bot/data/*.json
 .vscode/
 test.py
 test2.py
+cache.db

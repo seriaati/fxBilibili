@@ -1,19 +1,15 @@
-#!/usr/bin/env python3
-import asyncio
-import os
-import httpx
-from hypercorn.config import Config
-from hypercorn.asyncio import serve
-from quart import Quart, Response, request
+from contextlib import asynccontextmanager
+import logging
+from typing import AsyncGenerator
 
-app = Quart(__name__)
-app.url_map.strict_slashes = False
+import fastapi
+from aiohttp_client_cache.session import CachedSession
+from aiohttp_client_cache.backends.sqlite import SQLiteBackend
+import uvicorn
+
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
-
-
-def error_page(message: str, current_url: str = "") -> Response:
-    html = f"""<!DOCTYPE html>
+ERROR_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -38,41 +34,71 @@ def error_page(message: str, current_url: str = "") -> Response:
   <p>{message}</p>
 </body>
 </html>"""
-    return Response(html, content_type="text/html")
 
 
-@app.route("/")
-async def index():
-    return (
-        "Usage: Append the Bilibili video ID to the URL. "
-        "For example: /BV1xK4y1p7 or /video/BV1xK4y1p7"
+@asynccontextmanager
+async def app_lifespan(app: fastapi.FastAPI) -> AsyncGenerator[None, None]:
+    app.state.session = CachedSession(
+        cache=SQLiteBackend(cache_name="cache.db", expire_after=3600),
+    )
+    try:
+        yield
+    finally:
+        await app.state.session.close()
+
+
+logger = logging.getLogger("uvicorn")
+app = fastapi.FastAPI(lifespan=app_lifespan)
+
+
+def error_response(
+    message: str, current_url: str = ""
+) -> fastapi.responses.HTMLResponse:
+    return fastapi.responses.HTMLResponse(
+        ERROR_HTML.format(message=message, current_url=current_url),
     )
 
 
-@app.route("/favicon.ico")
-async def favicon():
-    return Response(status=204)
+@app.get("/")
+async def index() -> fastapi.responses.HTMLResponse:
+    return fastapi.responses.HTMLResponse(
+        "Usage: Append the Bilibili video ID to the URL.\n"
+        "For example: /BV1xK4y1p7 or /video/BV1xK4y1p7",
+    )
 
 
-@app.route("/<bvid>")
-@app.route("/video/<bvid>")
-async def bilibili_embed(bvid: str):
+@app.get("/favicon.ico")
+async def favicon() -> fastapi.responses.Response:
+    return fastapi.responses.Response(status=204)
+
+
+@app.get("/{bvid}")
+@app.get("/video/{bvid}")
+async def bilibili_embed(request: fastapi.Request, bvid: str) -> fastapi.responses.Response:
+    if "Discordbot" not in request.headers.get("User-Agent", ""):
+        return fastapi.responses.RedirectResponse(
+            f"https://www.bilibili.com/video/{bvid}",
+        )
+
     current_url = str(request.url)
 
-    async with httpx.AsyncClient() as client:
-        view_res = await client.get(
-            f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
-            headers=HEADERS,
-        )
-    if view_res.status_code != 200 or not view_res.content:
-        return error_page("Error fetching video data", current_url)
-    try:
-        view_data = view_res.json()
-    except Exception:
-        return error_page("Error decoding video data", current_url)
-    if view_data.get("code") != 0:
-        error_msg = view_data.get("message", "Invalid Bilibili video ID")
-        return error_page(error_msg, current_url)
+    session: CachedSession = app.state.session
+    async with session.get(
+        f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
+        headers=HEADERS,
+    ) as resp:
+        if resp.status != 200 or not resp.content:
+            return error_response("Error fetching video data", current_url)
+
+        try:
+            view_data = await resp.json()
+        except Exception:
+            return error_response("Error decoding video data", current_url)
+
+        if view_data.get("code") != 0:
+            error_msg = view_data.get("message", "Invalid Bilibili video ID")
+            return error_response(error_msg, current_url)
+
     video_data = view_data.get("data", {})
     title = video_data.get("title", "Bilibili Video")
     description = video_data.get("desc", "")
@@ -81,44 +107,37 @@ async def bilibili_embed(bvid: str):
     owner_name = owner.get("name", "Bilibili")
     stat = video_data.get("stat", {})
     view_count = stat.get("view", "0")
+
     dimension = video_data.get("dimension", {})
     width = dimension.get("width", 1920)
     height = dimension.get("height", 1080)
 
     pages = video_data.get("pages", [])
     if not pages:
-        return error_page("No video pages found", current_url)
+        return error_response("No video pages found", current_url)
     cid = pages[0].get("cid")
 
-    async with httpx.AsyncClient() as client:
-        play_res = await client.get(
-            f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&otype=json&platform=html5&high_quality=1",
-            headers=HEADERS,
-        )
-    if play_res.status_code != 200 or not play_res.content:
-        return error_page("Error fetching video stream", current_url)
-    try:
-        play_data = play_res.json()
-    except Exception:
-        return error_page("Error decoding video stream", current_url)
-    if play_data.get("code") != 0:
-        return error_page("Error in video stream data", current_url)
+    async with session.get(
+        f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&otype=json&platform=html5&high_quality=1",
+        headers=HEADERS,
+    ) as resp:
+        if resp.status != 200 or not resp.content:
+            return error_response("Error fetching video data", current_url)
+
+        try:
+            play_data = await resp.json()
+        except Exception:
+            return error_response("Error decoding video data", current_url)
+
+        if play_data.get("code") != 0:
+            return error_response("Error in video stream data", current_url)
+
     durls = play_data.get("data", {}).get("durl", [])
     if not durls:
-        return error_page("No video stream found", current_url)
+        return error_response("No video stream found", current_url)
     video_url = durls[0].get("url")
     if not video_url:
-        return error_page("No valid video URL", current_url)
-
-    user_agent = request.headers.get("User-Agent", "")
-    redirect_url = f"https://www.bilibili.com/video/{bvid}"
-    if "Discordbot" not in user_agent:
-        redirection = (
-            f'<meta http-equiv="refresh" content="0; url={redirect_url}">'
-            f'<script>window.location.replace("{redirect_url}");</script>'
-        )
-    else:
-        redirection = ""
+        return error_response("No valid video URL", current_url)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -143,7 +162,6 @@ async def bilibili_embed(bvid: str):
   <meta name="twitter:player:width" content={width}>
   <meta name="twitter:player:height" content={height}>
   <title>{title}</title>
-  {redirection}
   <style>
     body {{
       margin: 0;
@@ -160,10 +178,8 @@ async def bilibili_embed(bvid: str):
   </style>
 </head>
 </html>"""
-    return Response(html, content_type="text/html")
+    return fastapi.responses.HTMLResponse(html)
 
 
 if __name__ == "__main__":
-    config = Config()
-    config.bind = ["localhost:9823"]
-    asyncio.run(serve(app, config))
+    uvicorn.run(app, host="localhost", port=9823)

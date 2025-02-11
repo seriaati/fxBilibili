@@ -1,0 +1,11 @@
+[project]
+name = "fxbilibili"
+version = "0.1.0"
+description = "Fix bilibili embeds on Discord"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp-client-cache[sqlite]>=0.12.4",
+    "fastapi>=0.115.8",
+    "uvicorn>=0.34.0",
+]
