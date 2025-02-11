@@ -81,6 +81,9 @@ async def bilibili_embed(bvid: str):
     owner_name = owner.get("name", "Bilibili")
     stat = video_data.get("stat", {})
     view_count = stat.get("view", "0")
+    dimension = video_data.get("dimension", {})
+    width = dimension.get("width", 1920)
+    height = dimension.get("height", 1080)
 
     pages = video_data.get("pages", [])
     if not pages:
@@ -124,21 +127,21 @@ async def bilibili_embed(bvid: str):
   <meta name="theme-color" content="#0fa6d8">
   <meta property="og:title" content="{owner_name} - {title}">
   <meta property="og:type" content="video">
-  <meta property="og:site_name" content="👁️ Views: {view_count} | {owner_name}">
+  <meta property="og:site_name" content="👁️ {view_count}">
   <meta property="og:url" content="{current_url}">
   <meta property="og:video" content="{video_url}">
   <meta property="og:video:secure_url" content="{video_url}">
   <meta property="og:video:type" content="video/mp4">
-  <meta property="og:video:width" content="640">
-  <meta property="og:video:height" content="360">
+  <meta property="og:video:width" content={width}>
+  <meta property="og:video:height" content={height}>
   <meta property="og:image" content="{pic}">
   <meta name="twitter:card" content="player">
   <meta name="twitter:title" content="{title}">
   <meta name="twitter:description" content="{description}">
   <meta name="twitter:image" content="{pic}">
   <meta name="twitter:player" content="{current_url}">
-  <meta name="twitter:player:width" content="640">
-  <meta name="twitter:player:height" content="360">
+  <meta name="twitter:player:width" content={width}>
+  <meta name="twitter:player:height" content={height}>
   <title>{title}</title>
   {redirection}
   <style>
