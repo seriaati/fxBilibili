@@ -1,3 +1,0 @@
-quart
-httpx
-hypercorn
