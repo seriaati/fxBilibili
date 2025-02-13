@@ -74,7 +74,9 @@ async def favicon() -> fastapi.responses.Response:
 
 @app.get("/{bvid}")
 @app.get("/video/{bvid}")
-async def bilibili_embed(request: fastapi.Request, bvid: str) -> fastapi.responses.Response:
+async def bilibili_embed(
+    request: fastapi.Request, bvid: str
+) -> fastapi.responses.Response:
     if "Discordbot" not in request.headers.get("User-Agent", ""):
         return fastapi.responses.RedirectResponse(
             f"https://www.bilibili.com/video/{bvid}",
@@ -87,7 +89,7 @@ async def bilibili_embed(request: fastapi.Request, bvid: str) -> fastapi.respons
         f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
         headers=HEADERS,
     ) as resp:
-        if resp.status != 200 or not resp.content:
+        if resp.status != 200:
             return error_response("Error fetching video data", current_url)
 
         try:
@@ -112,32 +114,22 @@ async def bilibili_embed(request: fastapi.Request, bvid: str) -> fastapi.respons
     width = dimension.get("width", 1920)
     height = dimension.get("height", 1080)
 
-    pages = video_data.get("pages", [])
-    if not pages:
-        return error_response("No video pages found", current_url)
-    cid = pages[0].get("cid")
-
     async with session.get(
-        f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&otype=json&platform=html5&high_quality=1",
-        headers=HEADERS,
+        f"https://api.injahow.cn/bparse/?bv={bvid}&q=64&otype=json",
     ) as resp:
-        if resp.status != 200 or not resp.content:
+        if resp.status != 200:
             return error_response("Error fetching video data", current_url)
 
         try:
-            play_data = await resp.json()
+            data = await resp.json()
         except Exception:
             return error_response("Error decoding video data", current_url)
 
-        if play_data.get("code") != 0:
-            return error_response("Error in video stream data", current_url)
+        if data.get("code") != 0:
+            error_msg = data.get("message", "Invalid Bilibili video ID")
+            return error_response(error_msg, current_url)
 
-    durls = play_data.get("data", {}).get("durl", [])
-    if not durls:
-        return error_response("No video stream found", current_url)
-    video_url = durls[0].get("url")
-    if not video_url:
-        return error_response("No valid video URL", current_url)
+        video_url = data.get("url", "")
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
