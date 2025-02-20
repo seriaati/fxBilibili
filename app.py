@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import logging
+import re
 from typing import AsyncGenerator
 
 import fastapi
@@ -34,6 +35,11 @@ ERROR_HTML = """<!DOCTYPE html>
   <p>{message}</p>
 </body>
 </html>"""
+
+
+def extract_bilibili_video_id(url: str) -> str | None:
+    match = re.search(r"https://(?:www.|m.)?bilibili.com/video/([\w]+)", url)
+    return match.group(1) if match else None
 
 
 @asynccontextmanager
@@ -72,16 +78,9 @@ async def favicon() -> fastapi.responses.Response:
     return fastapi.responses.Response(status=204)
 
 
-@app.get("/{bvid}")
-@app.get("/video/{bvid}")
 async def bilibili_embed(
     request: fastapi.Request, bvid: str
 ) -> fastapi.responses.Response:
-    if "Discordbot" not in request.headers.get("User-Agent", ""):
-        return fastapi.responses.RedirectResponse(
-            f"https://www.bilibili.com/video/{bvid}",
-        )
-
     current_url = str(request.url)
 
     session: CachedSession = app.state.session
@@ -171,6 +170,40 @@ async def bilibili_embed(
 </head>
 </html>"""
     return fastapi.responses.HTMLResponse(html)
+
+
+@app.get("/b23/{id}")
+async def bilibili_redirect(
+    request: fastapi.Request, id: str
+) -> fastapi.responses.RedirectResponse:
+    url = f"https://b23.tv/{id}"
+
+    if "Discordbot" not in request.headers.get("User-Agent", ""):
+        return fastapi.responses.RedirectResponse(url)
+
+    session: CachedSession = app.state.session
+    async with session.get(url) as resp:
+        final_url = str(resp.url)
+
+    bvid = extract_bilibili_video_id(final_url)
+    if bvid is None:
+        logger.warning("Failed to extract Bilibili video ID from %s", final_url)
+        return fastapi.responses.RedirectResponse(url)
+
+    return await bilibili_embed(request, bvid)
+
+
+@app.get("/{bvid}")
+@app.get("/video/{bvid}")
+async def bilibili_direct(
+    request: fastapi.Request, bvid: str
+) -> fastapi.responses.Response:
+    if "Discordbot" not in request.headers.get("User-Agent", ""):
+        return fastapi.responses.RedirectResponse(
+            f"https://www.bilibili.com/video/{bvid}",
+        )
+
+    return await bilibili_embed(request, bvid)
 
 
 if __name__ == "__main__":
