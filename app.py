@@ -120,11 +120,20 @@ async def bilibili_embed(
     video_data = view_data.get("data", {})
     title = video_data.get("title", "Bilibili Video")
     description = video_data.get("desc", "")
-    pic = video_data.get("pic", "")
     owner = video_data.get("owner", {})
     owner_name = owner.get("name", "Bilibili")
     stat = video_data.get("stat", {})
     view_count = stat.get("view", "0")
+
+    dimension = video_data.get("dimension", {})
+    width = dimension.get("width", 1920)
+    height = dimension.get("height", 1080)
+    
+    pages = video_data.get("pages", [])
+    if pages:
+        pic = pages[0].get("first_frame	", "")
+    else:
+        pic = video_data.get("pic", "")
 
     async with session.get(
         f"https://api.injahow.cn/bparse/?bv={bvid}&q=64&otype=json",
@@ -152,27 +161,17 @@ async def bilibili_embed(
   <meta property="og:video" content="{video_url}">
   <meta property="og:video:secure_url" content="{video_url}">
   <meta property="og:video:type" content="video/mp4">
+  <meta property="og:video:width" content={width}>
+  <meta property="og:video:height" content={height}>
   <meta property="og:image" content="{pic}">
   <meta name="twitter:card" content="player">
   <meta name="twitter:title" content="{title}">
   <meta name="twitter:description" content="{description}">
   <meta name="twitter:image" content="{pic}">
   <meta name="twitter:player" content="{current_url}">
+  <meta name="twitter:player:width" content={width}>
+  <meta name="twitter:player:height" content={height}>
   <title>{title}</title>
-  <style>
-    body {{
-      margin: 0;
-      background: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }}
-    video {{
-      max-width: 100%;
-      max-height: 100%;
-    }}
-  </style>
 </head>
 </html>"""
     return fastapi.responses.HTMLResponse(html)
