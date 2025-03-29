@@ -1,13 +1,17 @@
 from contextlib import asynccontextmanager
 import logging
+import os
 import re
 from typing import AsyncGenerator
 
+from dotenv import load_dotenv
 import fastapi
 from aiohttp_client_cache.session import CachedSession
 from aiohttp_client_cache.backends.sqlite import SQLiteBackend
 import uvicorn
+from aiohttp_socks import ProxyConnector
 
+load_dotenv()
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 ERROR_HTML = """<!DOCTYPE html>
@@ -44,8 +48,12 @@ def extract_bilibili_video_id(url: str) -> str | None:
 
 @asynccontextmanager
 async def app_lifespan(app: fastapi.FastAPI) -> AsyncGenerator[None, None]:
+    cache = SQLiteBackend(cache_name="cache.db", expire_after=3600)
+    proxy_url = os.getenv("PROXY_URL")
+
     app.state.session = CachedSession(
-        cache=SQLiteBackend(cache_name="cache.db", expire_after=3600),
+        cache=cache,
+        connector=ProxyConnector.from_url(proxy_url) if proxy_url else None,
     )
     try:
         yield
