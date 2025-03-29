@@ -109,10 +109,6 @@ async def bilibili_embed(
     stat = video_data.get("stat", {})
     view_count = stat.get("view", "0")
 
-    dimension = video_data.get("dimension", {})
-    width = dimension.get("width", 1920)
-    height = dimension.get("height", 1080)
-
     async with session.get(
         f"https://api.injahow.cn/bparse/?bv={bvid}&q=64&otype=json",
     ) as resp:
@@ -142,16 +138,12 @@ async def bilibili_embed(
   <meta property="og:video" content="{video_url}">
   <meta property="og:video:secure_url" content="{video_url}">
   <meta property="og:video:type" content="video/mp4">
-  <meta property="og:video:width" content={width}>
-  <meta property="og:video:height" content={height}>
   <meta property="og:image" content="{pic}">
   <meta name="twitter:card" content="player">
   <meta name="twitter:title" content="{title}">
   <meta name="twitter:description" content="{description}">
   <meta name="twitter:image" content="{pic}">
   <meta name="twitter:player" content="{current_url}">
-  <meta name="twitter:player:width" content={width}>
-  <meta name="twitter:player:height" content={height}>
   <title>{title}</title>
   <style>
     body {{
