@@ -204,10 +204,10 @@ async def bilibili_redirect(
 async def bilibili_direct(
     request: fastapi.Request, bvid: str
 ) -> fastapi.responses.Response:
-    # if "Discordbot" not in request.headers.get("User-Agent", ""):
-    #     return fastapi.responses.RedirectResponse(
-    #         f"https://www.bilibili.com/video/{bvid}",
-    #     )
+    if "Discordbot" not in request.headers.get("User-Agent", ""):
+        return fastapi.responses.RedirectResponse(
+            f"https://www.bilibili.com/video/{bvid}",
+        )
 
     return await bilibili_embed(request, bvid)
 
