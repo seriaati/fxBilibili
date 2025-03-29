@@ -23,7 +23,6 @@ ERROR_HTML = """<!DOCTYPE html>
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Error - Video Not Found">
   <meta name="twitter:description" content="{message}">
-  <meta property="og:url" content="{current_url}">
   <title>Error</title>
   <style>
     body {{
@@ -65,11 +64,23 @@ logger = logging.getLogger("uvicorn")
 app = fastapi.FastAPI(lifespan=app_lifespan)
 
 
-def error_response(
-    message: str, current_url: str = ""
+@app.exception_handler(fastapi.HTTPException)
+async def http_exception_handler(
+    _: fastapi.Request, exc: fastapi.HTTPException
 ) -> fastapi.responses.HTMLResponse:
+    logger.exception(f"HTTP error: {exc.status_code} - {exc.detail}")
     return fastapi.responses.HTMLResponse(
-        ERROR_HTML.format(message=message, current_url=current_url),
+        ERROR_HTML.format(message=exc.detail), status_code=exc.status_code
+    )
+
+
+@app.exception_handler(Exception)
+async def exception_handler(
+    _: fastapi.Request, exc: Exception
+) -> fastapi.responses.HTMLResponse:
+    logger.exception(f"Unhandled exception: {exc}")
+    return fastapi.responses.HTMLResponse(
+        ERROR_HTML.format(message=str(exc)), status_code=500
     )
 
 
@@ -83,7 +94,7 @@ async def index() -> fastapi.responses.HTMLResponse:
 
 @app.get("/favicon.ico")
 async def favicon() -> fastapi.responses.Response:
-    return fastapi.responses.Response(status=204)
+    return fastapi.responses.Response(status_code=204)
 
 
 async def bilibili_embed(
@@ -96,17 +107,15 @@ async def bilibili_embed(
         f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
         headers=HEADERS,
     ) as resp:
-        if resp.status != 200:
-            return error_response("Error fetching video data", current_url)
-
-        try:
-            view_data = await resp.json()
-        except Exception:
-            return error_response("Error decoding video data", current_url)
+        resp.raise_for_status()
+        view_data = await resp.json()
 
         if view_data.get("code") != 0:
             error_msg = view_data.get("message", "Invalid Bilibili video ID")
-            return error_response(error_msg, current_url)
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail=error_msg,
+            )
 
     video_data = view_data.get("data", {})
     title = video_data.get("title", "Bilibili Video")
@@ -120,17 +129,14 @@ async def bilibili_embed(
     async with session.get(
         f"https://api.injahow.cn/bparse/?bv={bvid}&q=64&otype=json",
     ) as resp:
-        if resp.status != 200:
-            return error_response("Error fetching video data", current_url)
+        resp.raise_for_status()
 
-        try:
-            data = await resp.json()
-        except Exception:
-            return error_response("Error decoding video data", current_url)
-
+        data = await resp.json()
         if data.get("code") != 0:
-            error_msg = data.get("message", "Invalid Bilibili video ID")
-            return error_response(error_msg, current_url)
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail="Failed to retrieve video URL",
+            )
 
         video_url = data.get("url", "")
 
@@ -198,10 +204,10 @@ async def bilibili_redirect(
 async def bilibili_direct(
     request: fastapi.Request, bvid: str
 ) -> fastapi.responses.Response:
-    if "Discordbot" not in request.headers.get("User-Agent", ""):
-        return fastapi.responses.RedirectResponse(
-            f"https://www.bilibili.com/video/{bvid}",
-        )
+    # if "Discordbot" not in request.headers.get("User-Agent", ""):
+    #     return fastapi.responses.RedirectResponse(
+    #         f"https://www.bilibili.com/video/{bvid}",
+    #     )
 
     return await bilibili_embed(request, bvid)
 
