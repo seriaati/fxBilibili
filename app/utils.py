@@ -6,10 +6,10 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse, urlunparse
 
+from aiohttp_socks import ProxyError
 from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
 from app.schema import VideoData
-from aiohttp_socks import ProxyError
 
 if TYPE_CHECKING:
     import aiohttp
