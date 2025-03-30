@@ -9,5 +9,16 @@ dependencies = [
     "aiohttp-socks>=0.10.1",
     "fastapi>=0.115.8",
     "python-dotenv>=1.1.0",
-    "uvicorn>=0.34.0",
+    "tenacity>=9.0.0",
+    "uvicorn[standard]>=0.34.0",
 ]
+
+[tool.pyright]
+enableTypeIgnoreComments = false
+reportIncompatibleMethodOverride = false
+reportIncompatibleVariableOverride = false
+reportUnnecessaryComparison = true
+reportUnnecessaryContains = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryTypeIgnoreComment = true
+typeCheckingMode = "standard"
