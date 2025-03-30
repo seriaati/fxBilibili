@@ -2,7 +2,7 @@
     "apps": [
         {
             "name": "fxbilibili",
-            "script": "./app.py",
+            "script": "./run.py",
             "interpreter": "./.venv/bin/python"
         }
     ]
