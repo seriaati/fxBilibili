@@ -72,6 +72,27 @@ async def favicon() -> fastapi.responses.Response:
     return fastapi.responses.Response(status_code=204)
 
 
+@app.get("/dl/{bvid}")
+async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
+    video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
+    return fastapi.responses.RedirectResponse(video_url)
+
+
+@app.get("/dl/b23/{vid}")
+async def download_b23_video(vid: str) -> fastapi.responses.Response:
+    async with app.state.session.get(f"https://b23.tv/{vid}") as resp:
+        final_url = str(resp.url)
+
+    bvid = extract_bvid(remove_query_params(final_url))
+    if bvid is None:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND, detail="Invalid Bilibili URL"
+        )
+
+    video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
+    return fastapi.responses.RedirectResponse(video_url)
+
+
 async def bilibili_embed(request: fastapi.Request, bvid: str) -> fastapi.responses.Response:
     session: CachedSession = app.state.session
     proxy_session: CachedSession = app.state.proxy_session
@@ -110,24 +131,3 @@ async def embed_bilibili_video(request: fastapi.Request, bvid: str) -> fastapi.r
         return fastapi.responses.RedirectResponse(f"https://www.bilibili.com/video/{bvid}")
 
     return await bilibili_embed(request, bvid)
-
-
-@app.get("/dl/{bvid}")
-async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
-    video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
-    return fastapi.responses.RedirectResponse(video_url)
-
-
-@app.get("/dl/b23/{vid}")
-async def download_b23_video(vid: str) -> fastapi.responses.Response:
-    async with app.state.session.get(f"https://b23.tv/{vid}") as resp:
-        final_url = str(resp.url)
-
-    bvid = extract_bvid(remove_query_params(final_url))
-    if bvid is None:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_404_NOT_FOUND, detail="Invalid Bilibili URL"
-        )
-
-    video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
-    return fastapi.responses.RedirectResponse(video_url)
