@@ -17,7 +17,7 @@ class VideoDimension(BaseModel):
 
 
 class VideoPage(BaseModel):
-    first_frame: str
+    first_frame: str | None = None
 
 
 class VideoData(BaseModel):
