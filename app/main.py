@@ -18,7 +18,6 @@ from .utils import (
     get_embed_html,
     get_error_html,
     remove_query_params,
-    video_stream_generator,
 )
 
 if TYPE_CHECKING:
@@ -76,9 +75,7 @@ async def favicon() -> fastapi.responses.Response:
 @app.get("/dl/{bvid}")
 async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
     video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
-    return fastapi.responses.StreamingResponse(
-        video_stream_generator(video_url), media_type="video/mp4"
-    )
+    return fastapi.responses.RedirectResponse(video_url)
 
 
 @app.get("/dl/b23/{vid}")
@@ -93,9 +90,7 @@ async def download_b23_video(vid: str) -> fastapi.responses.Response:
         )
 
     video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
-    return fastapi.responses.StreamingResponse(
-        video_stream_generator(video_url), media_type="video/mp4"
-    )
+    return fastapi.responses.RedirectResponse(video_url)
 
 
 async def bilibili_embed(request: fastapi.Request, bvid: str) -> fastapi.responses.Response:
