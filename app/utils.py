@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import textwrap
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse, urlunparse
 
+import aiohttp
 from aiohttp_socks import ProxyError
 from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
 from app.schema import VideoData
 
 if TYPE_CHECKING:
-    import aiohttp
+    from collections.abc import AsyncGenerator
 
 logger = logging.getLogger("uvicorn")
 
@@ -135,3 +137,30 @@ def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str
         </html>
     """
     return textwrap.dedent(html)
+
+
+CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming
+
+
+async def video_stream_generator(url: str) -> AsyncGenerator[bytes]:
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    async with aiohttp.ClientSession() as session, session.get(url, headers=headers) as resp:
+        if not resp.ok:
+            logger.error("Error fetching video: %s", resp.status)
+            yield b""
+            return
+
+        # Get content length for proper streaming
+        content_length = resp.headers.get("Content-Length")
+        content_type = resp.headers.get("Content-Type", "video/mp4")
+
+        logger.info(
+            "Streaming video: Content-Length: %s, Content-Type: %s", content_length, content_type
+        )
+
+        async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
+            if not chunk:
+                break
+            yield chunk
+            await asyncio.sleep(0.01)

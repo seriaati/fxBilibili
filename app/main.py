@@ -18,6 +18,7 @@ from .utils import (
     get_embed_html,
     get_error_html,
     remove_query_params,
+    video_stream_generator,
 )
 
 if TYPE_CHECKING:
@@ -75,7 +76,9 @@ async def favicon() -> fastapi.responses.Response:
 @app.get("/dl/{bvid}")
 async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
     video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
-    return fastapi.responses.RedirectResponse(video_url)
+    return fastapi.responses.StreamingResponse(
+        video_stream_generator(video_url), media_type="video/mp4"
+    )
 
 
 @app.get("/dl/b23/{vid}")
@@ -90,15 +93,16 @@ async def download_b23_video(vid: str) -> fastapi.responses.Response:
         )
 
     video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
-    return fastapi.responses.RedirectResponse(video_url)
+    return fastapi.responses.StreamingResponse(
+        video_stream_generator(video_url), media_type="video/mp4"
+    )
 
 
 async def bilibili_embed(request: fastapi.Request, bvid: str) -> fastapi.responses.Response:
     session: CachedSession = app.state.session
-    proxy_session: CachedSession = app.state.proxy_session
 
     video = await fetch_video_info(session, bvid=bvid)
-    video_url = await fetch_video_url(proxy_session, bvid=bvid)
+    video_url = f"https://fxbilibili.seria.moe/dl/{bvid}"
 
     html = get_embed_html(video=video, current_url=str(request.url), video_url=video_url)
     return fastapi.responses.HTMLResponse(html)
