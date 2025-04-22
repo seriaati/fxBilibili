@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import logging
-import os
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 import fastapi
 from aiohttp_client_cache.backends.sqlite import SQLiteBackend
 from aiohttp_client_cache.session import CachedSession
-from aiohttp_socks import ProxyConnector
-from dotenv import load_dotenv
 
 from .utils import (
     extract_bvid,
@@ -23,26 +20,18 @@ from .utils import (
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-load_dotenv()
 logger = logging.getLogger("uvicorn")
 
 
 @asynccontextmanager
 async def app_lifespan(app: fastapi.FastAPI) -> AsyncGenerator[None, None]:
     cache = SQLiteBackend(cache_name="cache.db", expire_after=3600)
-    proxy_url = os.getenv("PROXY_URL")
-    logger.info("Proxy detected: %s", proxy_url is not None)
-
     app.state.session = CachedSession(cache=cache)
-    app.state.proxy_session = CachedSession(
-        cache=cache, connector=ProxyConnector.from_url(proxy_url) if proxy_url else None
-    )
 
     try:
         yield
     finally:
         await app.state.session.close()
-        await app.state.proxy_session.close()
 
 
 app = fastapi.FastAPI(lifespan=app_lifespan)
@@ -74,7 +63,7 @@ async def favicon() -> fastapi.responses.Response:
 
 @app.get("/dl/{bvid}")
 async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
-    video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
+    video_url = await fetch_video_url(app.state.session, bvid=bvid)
     return fastapi.responses.RedirectResponse(video_url)
 
 
@@ -89,7 +78,7 @@ async def download_b23_video(vid: str) -> fastapi.responses.Response:
             status_code=fastapi.status.HTTP_404_NOT_FOUND, detail="Invalid Bilibili URL"
         )
 
-    video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
+    video_url = await fetch_video_url(app.state.session, bvid=bvid)
     return fastapi.responses.RedirectResponse(video_url)
 
 

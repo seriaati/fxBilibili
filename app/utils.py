@@ -6,7 +6,6 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse, urlunparse
 
-from aiohttp_socks import ProxyError
 from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
 from app.schema import VideoData
@@ -86,14 +85,14 @@ async def fetch_video_info(session: aiohttp.ClientSession, *, bvid: str) -> Vide
 
 @retry(
     stop=stop_after_attempt(3),
-    retry=retry_if_exception_type((ProxyError, TimeoutError)),
+    retry=retry_if_exception_type(TimeoutError),
     before_sleep=before_sleep_log(logger, logging.INFO),
     reraise=True,
 )
 async def fetch_video_url(session: aiohttp.ClientSession, *, bvid: str) -> str:
     logger.info("Fetching video URL for %s", bvid)
 
-    async with session.get(f"https://api.injahow.cn/bparse/?bv={bvid}&q=64&otype=json") as resp:
+    async with session.get(f"https://bilibili-parse.seria.moe/bparse/?bv={bvid}&q=64&otype=json") as resp:
         resp.raise_for_status()
 
         data = await resp.json()
