@@ -9,6 +9,10 @@ class VideoOwner(BaseModel):
 
 class VideoStatistics(BaseModel):
     views: int = Field(0, alias="view")
+    coins: int = Field(0, alias="coin")
+    shares: int = Field(0, alias="share")
+    likes: int = Field(0, alias="like")
+    favorites: int = Field(0, alias="favorite")
 
 
 class VideoDimension(BaseModel):

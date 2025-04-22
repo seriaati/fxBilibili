@@ -110,6 +110,10 @@ async def fetch_video_url(session: aiohttp.ClientSession, *, bvid: str) -> str:
 def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str:
     image = video.pages[0].first_frame if video.pages else video.thumbnail
     image = image or video.thumbnail
+
+    stats = video.stats
+    site_name = f"👁️ {stats.views:,} 👍 {stats.likes:,} 🪙 {stats.coins:,} ⭐ {stats.favorites:,}"
+
     html = f"""
         <!DOCTYPE html>
         <html lang="en">
@@ -118,7 +122,7 @@ def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str
         <meta name="theme-color" content="#0fa6d8">
         <meta property="og:title" content="{video.owner.name} - {video.title}">
         <meta property="og:type" content="video">
-        <meta property="og:site_name" content="Bilibili | 👁️ {video.stats.views}">
+        <meta property="og:site_name" content="{site_name}">
         <meta property="og:url" content="{current_url}">
         <meta property="og:video" content="{video_url}">
         <meta property="og:video:secure_url" content="{video_url}">
