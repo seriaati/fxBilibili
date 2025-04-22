@@ -6,10 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiohttp-client-cache[sqlite]>=0.12.4",
-    "aiohttp-socks>=0.10.1",
     "fastapi>=0.115.8",
-    "python-dotenv>=1.1.0",
-    "tenacity>=9.0.0",
+    "tenacity>=9.1.2",
     "uvicorn[standard]>=0.34.0",
 ]
 
