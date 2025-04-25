@@ -76,9 +76,8 @@ async def favicon() -> fastapi.responses.Response:
 @app.get("/dl/{bvid}")
 async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
     video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
-    session: CachedSession = app.state.session
     return fastapi.responses.StreamingResponse(
-        video_stream_generator(session, video_url), media_type="video/mp4"
+        video_stream_generator(video_url), media_type="video/mp4"
     )
 
 
@@ -94,9 +93,8 @@ async def download_b23_video(vid: str) -> fastapi.responses.Response:
         )
 
     video_url = await fetch_video_url(app.state.proxy_session, bvid=bvid)
-    session: CachedSession = app.state.session
     return fastapi.responses.StreamingResponse(
-        video_stream_generator(session, video_url), media_type="video/mp4"
+        video_stream_generator(video_url), media_type="video/mp4"
     )
 
 

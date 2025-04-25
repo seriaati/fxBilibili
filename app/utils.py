@@ -7,6 +7,7 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse, urlunparse
 
+import aiohttp
 from aiohttp_socks import ProxyError
 from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
@@ -15,7 +16,6 @@ from app.schema import VideoData
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    import aiohttp
 
 logger = logging.getLogger("uvicorn")
 
@@ -147,10 +147,10 @@ def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str
 CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming
 
 
-async def video_stream_generator(session: aiohttp.ClientSession, url: str) -> AsyncGenerator[bytes]:
+async def video_stream_generator(url: str) -> AsyncGenerator[bytes]:
     headers = {"User-Agent": "Mozilla/5.0"}
 
-    async with session.get(url, headers=headers) as resp:
+    async with aiohttp.ClientSession() as session, session.get(url, headers=headers) as resp:
         if not resp.ok:
             logger.error("Error fetching video: %s", resp.status)
             yield b""
