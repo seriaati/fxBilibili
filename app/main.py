@@ -102,7 +102,7 @@ async def bilibili_embed(request: fastapi.Request, bvid: str) -> fastapi.respons
     session: CachedSession = app.state.session
 
     video = await fetch_video_info(session, bvid=bvid)
-    video_url = f"https://fxbilibili.seria.moe/dl/{bvid}"
+    video_url = await fetch_video_url(session, bvid=bvid)
 
     html = get_embed_html(video=video, current_url=str(request.url), video_url=video_url)
     return fastapi.responses.HTMLResponse(html)
