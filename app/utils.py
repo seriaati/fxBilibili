@@ -66,6 +66,10 @@ def extract_bvid(url: str) -> str | None:
     return match.group(1) if match else None
 
 
+def is_episode(url: str) -> bool:
+    return "bilibili.com/bangumi/play" in url
+
+
 def get_error_html(message: str) -> str:
     return ERROR_HTML.format(message=message)
 
@@ -85,6 +89,20 @@ async def fetch_video_info(session: aiohttp.ClientSession, *, bvid: str) -> Vide
             raise ValueError(msg)
 
         return VideoData(**view_data["data"])
+
+
+async def fetch_episode_bvid(session: aiohttp.ClientSession, *, ep_id: str, episode: int) -> str:
+    logger.info("Fetching episode bvid for %s", ep_id)
+
+    async with session.get(
+        f"https://api.bilibili.com/pgc/view/web/ep/list?ep_id={ep_id}",
+        headers={"User-Agent": "Mozilla/5.0"},
+    ) as resp:
+        resp.raise_for_status()
+        data: dict[str, Any] = await resp.json()
+        episodes = data["result"]["episodes"]
+        episode_data = episodes[episode - 1]
+        return episode_data["bvid"]
 
 
 @retry(

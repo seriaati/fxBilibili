@@ -13,10 +13,12 @@ from dotenv import load_dotenv
 
 from .utils import (
     extract_bvid,
+    fetch_episode_bvid,
     fetch_video_info,
     fetch_video_url,
     get_embed_html,
     get_error_html,
+    is_episode,
     remove_query_params,
     video_stream_generator,
 )
@@ -119,7 +121,11 @@ async def embed_b23_video(request: fastapi.Request, vid: str) -> fastapi.respons
     async with session.get(url) as resp:
         final_url = str(resp.url)
 
-    bvid = extract_bvid(remove_query_params(final_url))
+    if is_episode(final_url):
+        bvid = await fetch_episode_bvid(session, ep_id=vid.removeprefix("ep"), episode=1)
+    else:
+        bvid = extract_bvid(remove_query_params(final_url))
+
     if bvid is None:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND, detail="Invalid Bilibili URL"
