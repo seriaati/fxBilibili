@@ -119,6 +119,7 @@ async def fetch_video_url(session: aiohttp.ClientSession, *, bvid: str) -> str:
 
         data = await resp.json()
         if data.get("code") != 0:
+            logger.error(f"Failed to retrieve video URL: {data}")
             msg = "Failed to retrieve video URL"
             raise ValueError(msg)
 
