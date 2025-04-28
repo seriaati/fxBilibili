@@ -11,7 +11,7 @@ import aiohttp
 from aiohttp_socks import ProxyError
 from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
-from app.schema import VideoData
+from app.schema import VideoData, VideoURLRequest
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -111,15 +111,18 @@ async def fetch_episode_bvid(session: aiohttp.ClientSession, *, ep_id: str, epis
     before_sleep=before_sleep_log(logger, logging.INFO),
     reraise=True,
 )
-async def fetch_video_url(session: aiohttp.ClientSession, *, bvid: str) -> str:
-    logger.info("Fetching video URL for %s", bvid)
+async def fetch_video_url(session: aiohttp.ClientSession, request: VideoURLRequest) -> str:
+    logger.info("Fetching video URL with request: %s", request)
 
-    async with session.get(f"https://api.injahow.cn/bparse/?bv={bvid}&q=64&otype=json") as resp:
+    api_url = "https://api.injahow.cn/bparse/"
+    params = request.model_dump(exclude_unset=True)
+
+    async with session.get(api_url, params=params) as resp:
         resp.raise_for_status()
 
         data = await resp.json()
         if data.get("code") != 0:
-            logger.error(f"Failed to retrieve video URL: {data}")
+            logger.error("Failed to retrieve video URL: %s", data)
             msg = "Failed to retrieve video URL"
             raise ValueError(msg)
 

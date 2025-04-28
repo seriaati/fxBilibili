@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -33,3 +35,12 @@ class VideoData(BaseModel):
     thumbnail: str = Field(alias="pic")
 
     pages: list[VideoPage] = Field(default_factory=list)
+
+
+class VideoURLRequest(BaseModel):
+    bv: str | None = None
+    ep: str | None = None
+    type: Literal["video", "bangumi"] = "video"
+    q: Literal[16, 32, 64, 80] = 64
+    p: int = 1
+    otype: Literal["json", "url", "dplayer"] = "json"
