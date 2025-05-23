@@ -1,11 +1,11 @@
 # fxBilibili
 
-## Quick Setup
+Fix Bilibili link embeds on Discord.
 
-1. Install requirements
+This is made for [Embed Fixer](https://github.com/seriaati/embed-fixer).
 
-`pip install -r requirements.txt`
+## Usage
 
-2. Run the application
-
-`hypercorn app:app --bind 0.0.0.0:5000 --worker-class asyncio`
+- https://fxbilibili.seria.moe/b23/Mxq2mlf
+- https://fxbilibili.seria.moe/BV1LZoNYZEe6
+- https://fxbilibili.seria.moe/video/BV1LZoNYZEe6
