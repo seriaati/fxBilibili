@@ -77,6 +77,11 @@ async def favicon() -> fastapi.responses.Response:
     return fastapi.responses.Response(status_code=204)
 
 
+@app.get("/health")
+async def health_check() -> fastapi.responses.Response:
+    return fastapi.responses.Response(status_code=200, content="OK")
+
+
 @app.get("/dl/{bvid}")
 async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
     video_url = await fetch_video_url(app.state.proxy_session, VideoURLRequest(bv=bvid))
