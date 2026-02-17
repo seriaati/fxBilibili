@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Literal
 
 import fastapi
+from aiohttp_client_cache.backends.redis import RedisBackend
 from aiohttp_client_cache.backends.sqlite import SQLiteBackend
 from aiohttp_client_cache.session import CachedSession
 from aiohttp_socks import ProxyConnector
@@ -34,9 +35,16 @@ logger = logging.getLogger("uvicorn")
 
 @asynccontextmanager
 async def app_lifespan(app: fastapi.FastAPI) -> AsyncGenerator[None, None]:
-    cache = SQLiteBackend(cache_name="cache.db", expire_after=3600)
     proxy_url = os.getenv("PROXY_URL")
-    logger.info("Proxy detected: %s", proxy_url is not None)
+    redis_url = os.getenv("REDIS_URL")
+
+    logger.info("Using proxy: %s", proxy_url is not None)
+
+    if redis_url:
+        logger.info("Using Redis cache backend.")
+        cache = RedisBackend(cache_name="fxbilibili", redis_url=redis_url, expire_after=3600)
+    else:
+        cache = SQLiteBackend(cache_name="cache.db", expire_after=3600)
 
     app.state.session = CachedSession(cache=cache)
     app.state.proxy_session = CachedSession(
