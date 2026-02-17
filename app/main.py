@@ -42,7 +42,7 @@ async def app_lifespan(app: fastapi.FastAPI) -> AsyncGenerator[None, None]:
 
     if redis_url:
         logger.info("Using Redis cache backend.")
-        cache = RedisBackend(cache_name="fxbilibili", redis_url=redis_url, expire_after=3600)
+        cache = RedisBackend(cache_name="fxbilibili", address=redis_url, expire_after=3600)
     else:
         cache = SQLiteBackend(cache_name="cache.db", expire_after=3600)
 
