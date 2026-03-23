@@ -1,8 +1,10 @@
 # fxBilibili
 
-Fix Bilibili link embeds on Discord.
+Fix Bilibili link preview embeds on Discord.
 
-This is made for [Embed Fixer](https://github.com/seriaati/embed-fixer).
+Orginal script made by [RoyRiv3r](https://github.com/RoyRiv3r).
+
+This is made for [Embed Fixer](https://ef.seria.moe).
 
 ## Usage
 
