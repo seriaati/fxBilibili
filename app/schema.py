@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, Field
 
 
@@ -23,10 +21,14 @@ class VideoDimension(BaseModel):
 
 
 class VideoPage(BaseModel):
+    cid: int
     first_frame: str | None = None
 
 
 class VideoData(BaseModel):
+    bvid: str
+    aid: int
+    cid: int
     title: str
     description: str = Field(alias="desc")
     owner: VideoOwner
@@ -37,10 +39,8 @@ class VideoData(BaseModel):
     pages: list[VideoPage] = Field(default_factory=list)
 
 
-class VideoURLRequest(BaseModel):
-    bv: str | None = None
-    ep: str | None = None
-    type: Literal["video", "bangumi"] = "video"
-    q: Literal[16, 32, 64, 80] = 64
-    p: int = 1
-    otype: Literal["json", "url", "dplayer"] = "json"
+class EpisodeInfo(BaseModel):
+    ep_id: str
+    bvid: str
+    cid: int
+    aid: int | None = None

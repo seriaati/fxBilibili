@@ -4,14 +4,16 @@ import asyncio
 import logging
 import re
 import textwrap
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlparse, urlunparse
 
 import aiohttp
 from aiohttp_socks import ProxyError
 from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
-from app.schema import VideoData, VideoURLRequest
+from app.bilibili import DEFAULT_HEADERS as BILI_HEADERS
+from app.bilibili import get_bangumi_play_url, get_video_play_url
+from app.schema import EpisodeInfo, VideoData
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -91,8 +93,10 @@ async def fetch_video_info(session: aiohttp.ClientSession, *, bvid: str) -> Vide
         return VideoData(**view_data["data"])
 
 
-async def fetch_episode_bvid(session: aiohttp.ClientSession, *, ep_id: str, episode: int) -> str:
-    logger.info("Fetching episode bvid for %s", ep_id)
+async def fetch_episode_info(
+    session: aiohttp.ClientSession, *, ep_id: str
+) -> EpisodeInfo:
+    logger.info("Fetching bangumi episode info for ep%s", ep_id)
 
     async with session.get(
         f"https://api.bilibili.com/pgc/view/web/ep/list?ep_id={ep_id}",
@@ -100,9 +104,26 @@ async def fetch_episode_bvid(session: aiohttp.ClientSession, *, ep_id: str, epis
     ) as resp:
         resp.raise_for_status()
         data: dict[str, Any] = await resp.json()
-        episodes = data["result"]["episodes"]
-        episode_data = episodes[episode - 1]
-        return episode_data["bvid"]
+
+    result = data.get("result") if isinstance(data.get("result"), dict) else None
+    if result is None:
+        msg = data.get("message") or f"Bangumi episode ep{ep_id} not found"
+        raise ValueError(msg)
+    episodes: list[dict[str, Any]] = result.get("episodes") or []
+    if not episodes:
+        msg = f"No episodes found for ep{ep_id}"
+        raise ValueError(msg)
+
+    target = next(
+        (e for e in episodes if str(e.get("id")) == str(ep_id)),
+        episodes[0],
+    )
+    return EpisodeInfo(
+        ep_id=ep_id,
+        bvid=target["bvid"],
+        cid=int(target["cid"]),
+        aid=target.get("aid"),
+    )
 
 
 @retry(
@@ -111,22 +132,33 @@ async def fetch_episode_bvid(session: aiohttp.ClientSession, *, ep_id: str, epis
     before_sleep=before_sleep_log(logger, logging.INFO),
     reraise=True,
 )
-async def fetch_video_url(session: aiohttp.ClientSession, request: VideoURLRequest) -> str:
-    logger.info("Fetching video URL with request: %s", request)
-
-    api_url = "https://api.injahow.cn/bparse/"
-    params = request.model_dump(exclude_unset=True)
-
-    async with session.get(api_url, params=params) as resp:
-        resp.raise_for_status()
-
-        data = await resp.json()
-        if data.get("code") != 0:
-            logger.error("Failed to retrieve video URL: %s", data)
-            msg = "Failed to retrieve video URL"
+async def fetch_video_url(  # noqa: PLR0913
+    session: aiohttp.ClientSession,
+    *,
+    bvid: str | None = None,
+    ep_id: str | None = None,
+    cid: int,
+    vid_type: Literal["video", "bangumi"] = "video",
+    qn: int = 64,
+) -> str:
+    logger.info(
+        "Fetching playurl: type=%s bvid=%s ep_id=%s cid=%s qn=%s",
+        vid_type,
+        bvid,
+        ep_id,
+        cid,
+        qn,
+    )
+    if vid_type == "bangumi":
+        if ep_id is None:
+            msg = "ep_id required for bangumi playurl"
             raise ValueError(msg)
+        return await get_bangumi_play_url(session, ep_id=ep_id, cid=cid, qn=qn)
 
-        return data["url"]
+    if bvid is None:
+        msg = "bvid required for video playurl"
+        raise ValueError(msg)
+    return await get_video_play_url(session, bvid=bvid, cid=cid, qn=qn)
 
 
 def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str:
@@ -170,15 +202,14 @@ CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming
 
 
 async def video_stream_generator(url: str) -> AsyncGenerator[bytes]:
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    async with aiohttp.ClientSession() as session, session.get(url, headers=headers) as resp:
+    async with aiohttp.ClientSession() as session, session.get(
+        url, headers=BILI_HEADERS
+    ) as resp:
         if not resp.ok:
             logger.error("Error fetching video: %s", resp.status)
             yield b""
             return
 
-        # Get content length for proper streaming
         content_length = resp.headers.get("Content-Length")
         content_type = resp.headers.get("Content-Type", "video/mp4")
 
