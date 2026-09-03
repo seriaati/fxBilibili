@@ -1,9 +1,0 @@
-{
-    "apps": [
-        {
-            "name": "fxbilibili",
-            "script": "./run.py",
-            "interpreter": "./.venv/bin/python"
-        }
-    ]
-}
