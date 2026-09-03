@@ -12,7 +12,7 @@ from aiohttp_socks import ProxyError
 from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
 from app.bilibili import DEFAULT_HEADERS as BILI_HEADERS
-from app.bilibili import get_bangumi_play_url, get_video_play_url
+from app.bilibili import get_bangumi_play_url, get_video_play_url, get_video_view
 from app.schema import EpisodeInfo, VideoData
 
 if TYPE_CHECKING:
@@ -78,19 +78,7 @@ def get_error_html(message: str) -> str:
 
 async def fetch_video_info(session: aiohttp.ClientSession, *, bvid: str) -> VideoData:
     logger.info("Fetching video info for %s", bvid)
-
-    async with session.get(
-        f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
-        headers={"User-Agent": "Mozilla/5.0"},
-    ) as resp:
-        resp.raise_for_status()
-        view_data: dict[str, Any] = await resp.json()
-
-        if view_data.get("code") != 0:
-            msg = view_data.get("message", "Invalid Bilibili video ID")
-            raise ValueError(msg)
-
-        return VideoData(**view_data["data"])
+    return VideoData(**await get_video_view(session, bvid=bvid))
 
 
 async def fetch_episode_info(

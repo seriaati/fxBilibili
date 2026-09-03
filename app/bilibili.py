@@ -32,6 +32,7 @@ DEFAULT_HEADERS = {
 }
 
 WBI_NAV_URL = "https://api.bilibili.com/x/web-interface/nav"
+WBI_VIEW_URL = "https://api.bilibili.com/x/web-interface/wbi/view"
 WBI_PLAYURL = "https://api.bilibili.com/x/player/wbi/playurl"
 LEGACY_PLAYURL = "https://api.bilibili.com/x/player/playurl"
 PGC_PLAYURL = "https://api.bilibili.com/pgc/player/web/playurl"
@@ -147,6 +148,20 @@ async def _request_json(
     ) as resp:
         resp.raise_for_status()
         return await resp.json()
+
+
+async def get_video_view(session: aiohttp.ClientSession, *, bvid: str) -> dict[str, Any]:
+    """Return the raw `data` object of the WBI-signed video view API.
+
+    The unsigned `x/web-interface/view` endpoint is behind risk control and
+    answers 412 for non-browser clients; the `wbi/view` variant does not.
+    """
+    signed = await _signer.sign(session, {"bvid": bvid})
+    data = await _request_json(session, WBI_VIEW_URL, signed)
+    if data.get("code") != 0:
+        msg = data.get("message") or "Invalid Bilibili video ID"
+        raise ValueError(msg)
+    return data["data"]
 
 
 async def get_video_play_url(
