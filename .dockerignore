@@ -1,0 +1,31 @@
+# Virtual environments and caches
+.venv
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# VCS and editor/tooling state
+.git
+.gitignore
+.gitattributes
+.vscode/
+.serena/
+
+# Local secrets and runtime data
+.env
+*.db
+*.db-*
+cache.db*
+*.log
+
+# Not needed inside the image
+Dockerfile
+.dockerignore
+pm2.json
+README.md
+LICENSE
+playground.*.py
+test.py
+test2.py
