@@ -5,6 +5,30 @@ from pydantic import BaseModel, Field
 
 class VideoOwner(BaseModel):
     name: str = "???"
+    mid: int | None = None
+    face: str | None = None
+
+
+class VideoStaff(BaseModel):
+    mid: int
+    name: str
+
+
+class VideoSeason(BaseModel):
+    title: str
+    ep_count: int = 0
+
+
+class VideoHonor(BaseModel):
+    desc: str
+
+
+class VideoHonorReply(BaseModel):
+    honor: list[VideoHonor] = Field(default_factory=list)
+
+
+class VideoArgueInfo(BaseModel):
+    argue_msg: str = ""
 
 
 class VideoStatistics(BaseModel):
@@ -23,6 +47,7 @@ class VideoDimension(BaseModel):
 class VideoPage(BaseModel):
     cid: int
     first_frame: str | None = None
+    part: str = ""
 
 
 class VideoData(BaseModel):
@@ -37,6 +62,13 @@ class VideoData(BaseModel):
     thumbnail: str = Field(alias="pic")
 
     pages: list[VideoPage] = Field(default_factory=list)
+
+    pubdate: int | None = None
+    videos: int = 1
+    staff: list[VideoStaff] | None = None
+    ugc_season: VideoSeason | None = None
+    honor_reply: VideoHonorReply | None = None
+    argue_info: VideoArgueInfo | None = None
 
 
 class EpisodeInfo(BaseModel):

@@ -14,6 +14,7 @@ from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_afte
 
 from app.bilibili import DEFAULT_HEADERS as BILI_HEADERS
 from app.bilibili import get_bangumi_play_url, get_video_play_url, get_video_view
+from app.embed import get_component_embed
 from app.schema import EpisodeInfo, VideoData
 
 if TYPE_CHECKING:
@@ -156,12 +157,23 @@ async def fetch_video_url(  # noqa: PLR0913
     return await get_video_play_url(session, bvid=bvid, cid=cid, qn=qn)
 
 
-def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str:
+def get_embed_html(
+    *, video: VideoData, current_url: str, video_url: str, origin: str | None = None
+) -> str:
+    """Render the OG page. With `origin`, also emit a Discord component embed."""
     image = video.pages[0].first_frame if video.pages else video.thumbnail
     image = https_url(image or video.thumbnail)
 
     stats = video.stats
     site_name = f"👁️ {stats.views:,} 👍 {stats.likes:,} 🪙 {stats.coins:,} ⭐ {stats.favorites:,}"
+
+    # Built from raw text, before the values below are HTML-escaped.
+    component_embed = get_component_embed(video, origin) if origin else None
+    component_tag = (
+        f'<script id="discord:component-embed" type="application/json">{component_embed}</script>'
+        if component_embed
+        else ""
+    )
 
     title, owner, desc = escape(video.title), escape(video.owner.name), escape(video.description)
     current_url, video_url, image = escape(current_url), escape(video_url), escape(image)
@@ -191,6 +203,7 @@ def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str
         <meta name="twitter:player:width" content={video.dimension.width}>
         <meta name="twitter:player:height" content={video.dimension.height}>
         <title>{title}</title>
+        {component_tag}
         </head>
         </html>
     """

@@ -19,6 +19,7 @@ from .utils import (
     fetch_video_url,
     get_embed_html,
     get_error_html,
+    https_url,
     is_episode,
     remove_query_params,
     video_stream_generator,
@@ -140,8 +141,53 @@ async def bilibili_embed(
         vid_type=vid_type,
     )
 
-    html = get_embed_html(video=video, current_url=str(request.url), video_url=video_url)
+    origin = None
+    if vid_type == "video":
+        # Route the video through /m so old embeds always resolve a fresh CDN link.
+        origin = get_origin(request)
+        video_url = f"{origin}/m/{bvid}/0.mp4"
+
+    html = get_embed_html(
+        video=video, current_url=str(request.url), video_url=video_url, origin=origin
+    )
     return fastapi.responses.HTMLResponse(html)
+
+
+def get_origin(request: fastapi.Request) -> str:
+    host = request.headers.get("Host") or request.url.netloc
+    local = host.startswith(("localhost", "127.0.0.1"))
+    return f"{'http' if local else 'https'}://{host}"
+
+
+@app.get("/m/{bvid}/{file}")
+async def media_redirect(bvid: str, file: str) -> fastapi.responses.Response:
+    """Redirect a short media slot to a freshly resolved Bilibili URL.
+
+    Slots: `a` = uploader avatar, `0` = video (part 1). The extension only
+    tells Discord the media type.
+    """
+    slot = file.partition(".")[0]
+    if slot not in {"a", "0"}:
+        return fastapi.responses.Response(status_code=404)
+
+    try:
+        url = await _resolve_media(bvid, slot)
+    except ValueError:
+        return fastapi.responses.Response(status_code=404)
+    except Exception:
+        logger.exception("Failed to resolve media %s/%s", bvid, file)
+        return fastapi.responses.Response(status_code=502)
+
+    if url is None:
+        return fastapi.responses.Response(status_code=404)
+    return fastapi.responses.RedirectResponse(url, status_code=302)
+
+
+async def _resolve_media(bvid: str, slot: str) -> str | None:
+    video = await fetch_video_info(app.state.session, bvid=bvid)
+    if slot == "a":
+        return https_url(video.owner.face) if video.owner.face else None
+    return await fetch_video_url(app.state.proxy_session, bvid=bvid, cid=video.cid)
 
 
 @app.get("/b23/{vid}")
