@@ -8,9 +8,9 @@ This is made for [Embed Fixer](https://ef.seria.moe).
 
 ## Usage
 
-- https://fxbilibili.seria.moe/b23/Mxq2mlf
-- https://fxbilibili.seria.moe/BV1LZoNYZEe6
-- https://fxbilibili.seria.moe/video/BV1LZoNYZEe6
+- https://fxbilibili.seria.moe/b23/BV1SMaJ6nETt
+- https://fxbilibili.seria.moe/BV1SMaJ6nETt
+- https://fxbilibili.seria.moe/video/BV1SMaJ6nETt
 
 ## Configuration
 
