@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 import textwrap
+from html import escape
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlparse, urlunparse
 
@@ -73,7 +74,13 @@ def is_episode(url: str) -> bool:
 
 
 def get_error_html(message: str) -> str:
-    return ERROR_HTML.format(message=message)
+    return ERROR_HTML.format(message=escape(message))
+
+
+def https_url(url: str) -> str:
+    if url.startswith("//"):
+        return f"https:{url}"
+    return "https://" + url.removeprefix("http://") if url.startswith("http://") else url
 
 
 async def fetch_video_info(session: aiohttp.ClientSession, *, bvid: str) -> VideoData:
@@ -151,10 +158,14 @@ async def fetch_video_url(  # noqa: PLR0913
 
 def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str:
     image = video.pages[0].first_frame if video.pages else video.thumbnail
-    image = image or video.thumbnail
+    image = https_url(image or video.thumbnail)
 
     stats = video.stats
     site_name = f"👁️ {stats.views:,} 👍 {stats.likes:,} 🪙 {stats.coins:,} ⭐ {stats.favorites:,}"
+
+    title, owner, desc = escape(video.title), escape(video.owner.name), escape(video.description)
+    current_url, video_url, image = escape(current_url), escape(video_url), escape(image)
+    site_name = escape(site_name)
 
     html = f"""
         <!DOCTYPE html>
@@ -162,7 +173,7 @@ def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str
         <head>
         <meta charset="utf-8">
         <meta name="theme-color" content="#0fa6d8">
-        <meta property="og:title" content="{video.owner.name} - {video.title}">
+        <meta property="og:title" content="{owner} - {title}">
         <meta property="og:type" content="video">
         <meta property="og:site_name" content="{site_name}">
         <meta property="og:url" content="{current_url}">
@@ -173,13 +184,13 @@ def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str
         <meta property="og:video:height" content={video.dimension.height}>
         <meta property="og:image" content="{image}">
         <meta name="twitter:card" content="player">
-        <meta name="twitter:title" content="{video.title}">
-        <meta name="twitter:description" content="{video.description}">
+        <meta name="twitter:title" content="{title}">
+        <meta name="twitter:description" content="{desc}">
         <meta name="twitter:image" content="{image}">
         <meta name="twitter:player" content="{current_url}">
         <meta name="twitter:player:width" content={video.dimension.width}>
         <meta name="twitter:player:height" content={video.dimension.height}>
-        <title>{video.title}</title>
+        <title>{title}</title>
         </head>
         </html>
     """
