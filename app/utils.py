@@ -157,10 +157,7 @@ async def fetch_video_url(  # noqa: PLR0913
     return await get_video_play_url(session, bvid=bvid, cid=cid, qn=qn)
 
 
-def get_embed_html(
-    *, video: VideoData, current_url: str, video_url: str, origin: str | None = None
-) -> str:
-    """Render the OG page. With `origin`, also emit a Discord component embed."""
+def get_embed_html(*, video: VideoData, current_url: str, video_url: str) -> str:
     image = video.pages[0].first_frame if video.pages else video.thumbnail
     image = https_url(image or video.thumbnail)
 
@@ -168,7 +165,8 @@ def get_embed_html(
     site_name = f"👁️ {stats.views:,} 👍 {stats.likes:,} 🪙 {stats.coins:,} ⭐ {stats.favorites:,}"
 
     # Built from raw text, before the values below are HTML-escaped.
-    component_embed = get_component_embed(video, origin) if origin else None
+    avatar_url = https_url(video.owner.face) if video.owner.face else None
+    component_embed = get_component_embed(video, video_url=video_url, avatar_url=avatar_url)
     component_tag = (
         f'<script id="discord:component-embed" type="application/json">{component_embed}</script>'
         if component_embed

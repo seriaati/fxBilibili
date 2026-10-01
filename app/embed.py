@@ -46,9 +46,10 @@ def _caption(desc: str, n: int) -> str:
     return "\n".join(_line(line) for line in _cut(desc, n).split("\n"))
 
 
-def _build(video: VideoData, origin: str, *, desc_len: int, staff_max: int) -> dict[str, Any]:
+def _build(
+    video: VideoData, video_url: str, avatar_url: str | None, *, desc_len: int, staff_max: int
+) -> dict[str, Any]:
     bvid, owner = video.bvid, video.owner
-    media = f"{origin}/m/{bvid}"
     owner_link = (
         f"[{_esc(owner.name)}]({SPACE_URL.format(mid=owner.mid)})"
         if owner.mid
@@ -70,15 +71,11 @@ def _build(video: VideoData, origin: str, *, desc_len: int, staff_max: int) -> d
 
     texts = [{"type": 10, "content": header}, {"type": 10, "content": body}]
     components: list[dict[str, Any]] = [
-        {
-            "type": 9,
-            "components": texts,
-            "accessory": {"type": 11, "media": {"url": f"{media}/a.jpg"}},
-        }
-        if owner.face
+        {"type": 9, "components": texts, "accessory": {"type": 11, "media": {"url": avatar_url}}}
+        if avatar_url
         else {"type": 10, "content": f"{header}\n{body}"},
         {"type": 14, "divider": False, "spacing": 2},
-        {"type": 12, "items": [{"media": {"url": f"{media}/0.mp4"}}]},
+        {"type": 12, "items": [{"media": {"url": video_url}}]},
     ]
 
     info: list[str] = []
@@ -123,7 +120,7 @@ def _serialize(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
 
 
-def get_component_embed(video: VideoData, origin: str) -> str | None:
+def get_component_embed(video: VideoData, *, video_url: str, avatar_url: str | None) -> str | None:
     """Return the serialized payload, or None when it cannot fit Discord's byte cap.
 
     The description gets whatever bytes remain; if the collaborator list leaves it
@@ -136,7 +133,9 @@ def get_component_embed(video: VideoData, origin: str) -> str | None:
         best: str | None = None
         while lo <= hi:
             mid = (lo + hi) // 2
-            serialized = _serialize(_build(video, origin, desc_len=mid, staff_max=staff_max))
+            serialized = _serialize(
+                _build(video, video_url, avatar_url, desc_len=mid, staff_max=staff_max)
+            )
             if len(serialized.encode()) <= MAX_BYTES:
                 best, lo = serialized, mid + 1
             else:
