@@ -184,7 +184,7 @@ def get_embed_html(
         <html lang="en">
         <head>
         <meta charset="utf-8">
-        <meta name="theme-color" content="#0fa6d8">
+        <meta name="theme-color" content="#fb7299">
         <meta property="og:title" content="{owner} - {title}">
         <meta property="og:type" content="video">
         <meta property="og:site_name" content="{site_name}">
