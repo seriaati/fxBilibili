@@ -107,7 +107,12 @@ def _build(
     ]
     if owner.mid:
         buttons.append(
-            {"type": 2, "style": 5, "label": "Channel", "url": SPACE_URL.format(mid=owner.mid)}
+            {
+                "type": 2,
+                "style": 5,
+                "label": _cut(owner.name, 80),
+                "url": SPACE_URL.format(mid=owner.mid),
+            }
         )
 
     components += [
