@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from .utils import (
     extract_bvid,
+    extract_ep_id,
     fetch_episode_info,
     fetch_video_info,
     fetch_video_url,
@@ -161,7 +162,12 @@ async def embed_b23_video(request: fastapi.Request, vid: str) -> fastapi.respons
     final_url = await _resolve_b23(url)
 
     if is_episode(final_url):
-        ep_id = vid.removeprefix("ep")
+        ep_id = extract_ep_id(final_url)
+        if ep_id is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail="Failed to extract episode ID from shortened URL",
+            )
         episode = await fetch_episode_info(session, ep_id=ep_id)
         return await bilibili_embed(
             request, bvid=episode.bvid, vid_type="bangumi", ep_id=ep_id

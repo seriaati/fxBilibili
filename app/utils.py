@@ -70,6 +70,11 @@ def extract_bvid(url: str) -> str | None:
     return match.group(1) if match else None
 
 
+def extract_ep_id(url: str) -> str | None:
+    match = re.search(r"bilibili.com/bangumi/play/ep(\d+)", url)
+    return match.group(1) if match else None
+
+
 def is_episode(url: str) -> bool:
     return "bilibili.com/bangumi/play" in url
 
