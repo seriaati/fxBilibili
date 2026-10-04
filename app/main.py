@@ -95,6 +95,13 @@ async def _resolve_video_url_for_bvid(bvid: str) -> str:
     return await fetch_video_url(proxy_session, bvid=bvid, cid=video.cid)
 
 
+async def _resolve_b23(url: str) -> str:
+    # Only read the first redirect's Location; following it hits www.bilibili.com, which is slow and 412s bots.
+    session: CachedSession = app.state.session
+    async with session.get(url, allow_redirects=False) as resp:
+        return resp.headers.get("Location", str(resp.url))
+
+
 @app.get("/dl/{bvid}")
 async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
     video_url = await _resolve_video_url_for_bvid(bvid)
@@ -105,8 +112,7 @@ async def download_bilibili_video(bvid: str) -> fastapi.responses.Response:
 
 @app.get("/dl/b23/{vid}")
 async def download_b23_video(vid: str) -> fastapi.responses.Response:
-    async with app.state.session.get(f"https://b23.tv/{vid}") as resp:
-        final_url = str(resp.url)
+    final_url = await _resolve_b23(f"https://b23.tv/{vid}")
 
     bvid = extract_bvid(remove_query_params(final_url))
     if bvid is None:
@@ -152,8 +158,7 @@ async def embed_b23_video(request: fastapi.Request, vid: str) -> fastapi.respons
         return fastapi.responses.RedirectResponse(url)
 
     session: CachedSession = app.state.session
-    async with session.get(url) as resp:
-        final_url = str(resp.url)
+    final_url = await _resolve_b23(url)
 
     if is_episode(final_url):
         ep_id = vid.removeprefix("ep")
