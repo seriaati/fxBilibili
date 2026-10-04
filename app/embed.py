@@ -20,11 +20,17 @@ SEARCH_URL = "https://search.bilibili.com/all?keyword={kw}"
 _MD = re.compile(r"([\\*_~`|\[\]<>])")
 _LEAD = re.compile(r"^(\s*)([#>\-+]|\d+\.)", re.MULTILINE)
 _TAG = re.compile(r"#([^#\s]{1,32})#")  # Bilibili hashtags are closed: #tag#
+# Discord renders a masked link as raw markdown when its text contains emoji.
+_EMOJI = re.compile(r"[\U0001F000-\U0001FAFF\u2300-\u23FF\u2600-\u27BF\u2B00-\u2BFF\uFE0F\u200D]")
 
 
 def _esc(text: str) -> str:
     text = _MD.sub(r"\\\1", text)
     return _LEAD.sub(lambda m: m.group(1) + "\\" + m.group(2), text)
+
+
+def _link(text: str, url: str) -> str:
+    return text if _EMOJI.search(text) else f"[{text}]({url})"
 
 
 def _cut(text: str, n: int) -> str:
@@ -36,7 +42,7 @@ def _line(line: str) -> str:
     out: list[str] = []
     for i, part in enumerate(parts):
         if i % 2:
-            out.append(f"[#{_esc(part)}#]({SEARCH_URL.format(kw=quote(part))})")
+            out.append(_link(f"#{_esc(part)}#", SEARCH_URL.format(kw=quote(part))))
         else:
             out.append(_esc(part) if i == 0 else _MD.sub(r"\\\1", part))
     return "".join(out)
@@ -51,21 +57,19 @@ def _build(
 ) -> dict[str, Any]:
     bvid, owner = video.bvid, video.owner
     owner_link = (
-        f"[{_esc(owner.name)}]({SPACE_URL.format(mid=owner.mid)})"
-        if owner.mid
-        else _esc(owner.name)
+        _link(_esc(owner.name), SPACE_URL.format(mid=owner.mid)) if owner.mid else _esc(owner.name)
     )
 
     header = f"### {owner_link}"
     staff = [s for s in video.staff or [] if s.mid != owner.mid]
     if staff:
         names = " · ".join(
-            f"[{_esc(s.name)}]({SPACE_URL.format(mid=s.mid)})" for s in staff[:staff_max]
+            _link(_esc(s.name), SPACE_URL.format(mid=s.mid)) for s in staff[:staff_max]
         )
         more = f" +{len(staff) - staff_max}" if len(staff) > staff_max else ""
         header += f"\n-# 👥 with {names}{more}"
 
-    body = f"**[{_esc(video.title)}]({VIDEO_URL.format(bvid=bvid)})**"
+    body = f"**{_link(_esc(video.title), VIDEO_URL.format(bvid=bvid))}**"
     if video.description and video.description != "-":
         body += "\n" + _caption(video.description, desc_len)
 
