@@ -141,7 +141,8 @@ async def fetch_video_url(  # noqa: PLR0913
     cid: int,
     vid_type: Literal["video", "bangumi"] = "video",
     qn: int = 64,
-) -> str:
+) -> tuple[str, int]:
+    """Return the MP4 URL and its size in bytes (0 if unknown)."""
     logger.info(
         "Fetching playurl: type=%s bvid=%s ep_id=%s cid=%s qn=%s",
         vid_type,

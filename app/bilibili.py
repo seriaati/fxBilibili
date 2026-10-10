@@ -101,12 +101,13 @@ class WbiSigner:
 _signer = WbiSigner()
 
 
-def _extract_durl(payload: dict[str, Any]) -> str:
+def _extract_durl(payload: dict[str, Any]) -> tuple[str, int]:
+    """Return the first durl's URL and its size in bytes (0 if unknown)."""
     durls = payload.get("durl")
     if not durls:
         msg = "Playurl response has no 'durl' (likely DASH-only — verify fnval/platform parameters)"
         raise ValueError(msg)
-    return durls[0]["url"]
+    return durls[0]["url"], int(durls[0].get("size") or 0)
 
 
 def _unwrap(data: dict[str, Any]) -> dict[str, Any]:
@@ -166,8 +167,8 @@ async def get_video_view(session: aiohttp.ClientSession, *, bvid: str) -> dict[s
 
 async def get_video_play_url(
     session: aiohttp.ClientSession, *, bvid: str, cid: int, qn: int = 80
-) -> str:
-    """Return an MP4 URL for a regular Bilibili video."""
+) -> tuple[str, int]:
+    """Return an MP4 URL and its size for a regular Bilibili video."""
     raw = _video_params(bvid=bvid, cid=cid, qn=qn)
     try:
         signed = await _signer.sign(session, raw)
@@ -181,8 +182,8 @@ async def get_video_play_url(
 
 async def get_bangumi_play_url(
     session: aiohttp.ClientSession, *, ep_id: str, cid: int, qn: int = 80
-) -> str:
-    """Return an MP4 URL for a Bilibili bangumi episode."""
+) -> tuple[str, int]:
+    """Return an MP4 URL and its size for a Bilibili bangumi episode."""
     params: dict[str, Any] = {
         "ep_id": ep_id,
         "cid": cid,

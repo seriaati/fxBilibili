@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 load_dotenv()
 logger = logging.getLogger("uvicorn")
 
+DISCORD_VIDEO_MAX_BYTES = 35_000_000  # largest size confirmed to embed in facebed
+
 
 @asynccontextmanager
 async def app_lifespan(app: fastapi.FastAPI) -> AsyncGenerator[None, None]:
@@ -93,7 +95,8 @@ async def _resolve_video_url_for_bvid(bvid: str) -> str:
     session: CachedSession = app.state.session
     proxy_session: CachedSession = app.state.proxy_session
     video = await fetch_video_info(session, bvid=bvid)
-    return await fetch_video_url(proxy_session, bvid=bvid, cid=video.cid)
+    video_url, _ = await fetch_video_url(proxy_session, bvid=bvid, cid=video.cid)
+    return video_url
 
 
 async def _resolve_b23(url: str) -> str:
@@ -139,13 +142,15 @@ async def bilibili_embed(
     proxy_session: CachedSession = app.state.proxy_session
 
     video = await fetch_video_info(session, bvid=bvid)
-    video_url = await fetch_video_url(
-        proxy_session,
-        bvid=bvid,
-        ep_id=ep_id,
-        cid=video.cid,
-        vid_type=vid_type,
+    video_url, size = await fetch_video_url(
+        proxy_session, bvid=bvid, ep_id=ep_id, cid=video.cid, vid_type=vid_type
     )
+    # Discord downloads the whole og:video and drops the embed if that takes ~10s.
+    if size > DISCORD_VIDEO_MAX_BYTES:
+        logger.info("720P is %d bytes, falling back to 360P for %s", size, bvid)
+        video_url, _ = await fetch_video_url(
+            proxy_session, bvid=bvid, ep_id=ep_id, cid=video.cid, vid_type=vid_type, qn=16
+        )
 
     html = get_embed_html(video=video, current_url=str(request.url), video_url=video_url)
     return fastapi.responses.HTMLResponse(html)
